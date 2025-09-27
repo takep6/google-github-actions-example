@@ -3,3 +3,12 @@
 
 # GitHub App credentials
 gha-creds-*.json
+
+# Virtual environment
+.venv/
+
+# Python version
+.python-version
+
+# Python cache
+__pycache__
