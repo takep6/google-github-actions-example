@@ -51,37 +51,36 @@ jobs:
           gemini_debug: '${{ fromJSON(vars.DEBUG || vars.ACTIONS_STEP_DEBUG || true) }}'
           # Geminiへの指示プロンプト
           prompt: |-
-            ## Persona and Guiding Principles
-            You are a world-class autonomous AI software engineering agent. Your purpose is to assist with development tasks.
+            ## Task: Generate and Post a Plan
+            Your goal is to analyze the user's request and create a step-by-step plan.
 
-            ## Your Current Task: Plan Generation
-            Your SOLE OBJECTIVE in this task is to analyze the user's request and generate a detailed, step-by-step plan. You will then post this plan as a comment on the GitHub issue.
-            - **DO NOT** execute any part of the plan.
-            - Your final output **MUST** be a single `mcp__github__add_issue_comment` tool call.
+            ### User Request
+            - **Title**: `${TITLE}`
+            - **Description**: `${DESCRIPTION}`
 
-            ## Step 1: Analyze the Request
-            - The user's request is in the issue title and description.
-            - Issue Title: `${TITLE}`
-            - Issue Description: `${DESCRIPTION}`
-            - Analyze the user's intent (e.g., create a file, fix a bug, implement a feature).
+            ### Instructions
+            1.  Analyze the request and formulate a concise, multi-step plan.
+            2.  Format the plan using the provided markdown template.
+            3.  Your final and ONLY output MUST be a single `mcp__github__add_issue_comment` tool call.
+            4.  **Crucially, you must use the following parameters for the tool call:**
+                - `repository`: "${REPOSITORY}"
+                - `issueNumber`: ${{ISSUE_NUMBER}}
+                - `body`: (Your generated plan markdown)
 
-            ## Step 2: Formulate and Post the Plan
-            - Create a detailed plan based on your analysis.
-            - Use the `mcp__github__add_issue_comment` tool to post the generated plan to issue number `${ISSUE_NUMBER}` in the `${REPOSITORY}` repository.
-            - Your comment content MUST follow this exact markdown format:
-              ```markdown
-              ## 🤖 AI Assistant: Plan of Action
-              I have analyzed the request and propose the following plan. **This plan will not be executed until a maintainer comments `/approve` on this issue.**
-              **Resource Estimate:**
-              *   **Estimated Tool Calls:** ~[Number of tool calls, e.g., 3-5]
-              *   **Files to Modify/Create:** [Number of files]
-              **Proposed Steps:**
-              - [ ] Step 1: [Detailed description of the first action, e.g., "Create a new branch named 'feature-${ISSUE_NUMBER}' from the 'main' branch."]
-              - [ ] Step 2: [Detailed description of the second action, e.g., "Create a new file named 'fizzbuzz.py' with the specified Python code."]
-              - [ ] Step 3: [Detailed description of the third action, e.g., "Commit the new file with the message 'feat: Add fizzbuzz script for issue #${ISSUE_NUMBER}'."]
-              - [ ] Step 4: [Detailed description of the final action, e.g., "Create a pull request from the 'feature-${ISSUE_NUMBER}' branch to the 'main' branch."]
-              Please review this plan. To approve, comment `/approve` on this issue.
-              ```
+            ### Plan Template (for the `body` parameter)
+            ```markdown
+            ## 🤖 AI Assistant: Plan of Action
+            I have analyzed the request and propose the following plan. **This plan will not be executed until a maintainer comments `/approve` on this issue.**
+            **Resource Estimate:**
+            *   **Estimated Tool Calls:** ~4-5
+            *   **Files to Modify/Create:** 1
+            **Proposed Steps:**
+            - [ ] Step 1: Create a new branch named `feature-${{ISSUE_NUMBER}}` from the `main` branch.
+            - [ ] Step 2: Create a new file named `fizzbuzz.py` with the Python script that implements the FizzBuzz logic.
+            - [ ] Step 3: Commit the new file with the message `feat: Add fizzbuzz script for issue #${{ISSUE_NUMBER}}`.
+            - [ ] Step 4: Create a pull request from the `feature-${{ISSUE_NUMBER}}` branch to the `main` branch, linking it to this issue.
+            Please review this plan. To approve, comment `/approve` on this issue.
+            ```
           # Gemini CLIのツール設定
           settings: |-
             {
