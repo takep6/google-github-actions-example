@@ -177,13 +177,24 @@ jobs:
 
                   **Resource Estimate:**
 
-                  * **Estimated Tool Calls:** ~[Number]
-                  * **Files to Modify:** [Number]
+                  * **Estimated Tool Calls:** ~[例: 5-8]
+                  * **Files to Modify:** [例: 2]
 
                   **Proposed Steps:**
 
-                  - [ ] Step 1: Detailed description of the first action.
-                  - [ ] Step 2: ...
+                  - [ ] **Step 1: Create a new branch**
+                    - I will create a new branch named `feature-${{ github.event.issue.number }}` from the `main` branch to work on this implementation.
+
+                  - [ ] **Step 2: Implement the required code changes**
+                    - I will modify the file `[ファイル名A]` to add the new feature.
+                    - I will create a new file `[ファイル名B]` with the necessary logic.
+                    - (A summary of the planned code changes will be described here.)
+
+                  - [ ] **Step 3: Commit and push the changes**
+                    - I will commit the modifications with a message following the Conventional Commits standard, such as `feat: Implement new feature for issue #${{ github.event.issue.number }}`.
+
+                  - [ ] **Step 4: Create a Pull Request**
+                    - I will create a pull request from the `feature-${{ github.event.issue.number }}` branch to the `main` branch. The pull request will be linked to this issue for tracking.
 
                   Please review this plan. To approve, comment `/approve` on this issue. To reject, comment `/deny`.
                   ```
