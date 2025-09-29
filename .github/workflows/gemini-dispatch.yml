@@ -155,7 +155,7 @@ jobs:
     needs: 'dispatch'
     if: |-
       ${{ needs.dispatch.outputs.command == 'invoke' }}
-    uses: './.github/workflows/gemini-invoke-ja.yml'
+    uses: './.github/workflows/gemini-invoke.yml'
     permissions:
       contents: 'read'
       id-token: 'write'
