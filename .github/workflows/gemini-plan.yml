@@ -48,25 +48,22 @@ jobs:
         with:
           # 以下はご自身の環境に合わせて設定してください
           gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
-          gemini_debug: '${{ fromJSON(vars.DEBUG || vars.ACTIONS_STEP_DEBUG || true) }}'
+          gemini_debug: true
           # Geminiへの指示プロンプト
           prompt: |-
             ## Task: Generate and Post a Plan
             Your goal is to analyze the user's request and create a step-by-step plan.
-
             ### User Request
             - **Title**: `${TITLE}`
             - **Description**: `${DESCRIPTION}`
-
             ### Instructions
             1.  Analyze the request and formulate a concise, multi-step plan.
             2.  Format the plan using the provided markdown template.
             3.  Your final and ONLY output MUST be a single `mcp__github__add_issue_comment` tool call.
             4.  **Crucially, you must use the following parameters for the tool call:**
                 - `repository`: "${REPOSITORY}"
-                - `issueNumber`: ${{ISSUE_NUMBER}}
+                - `issueNumber`: ${ISSUE_NUMBER}
                 - `body`: (Your generated plan markdown)
-
             ### Plan Template (for the `body` parameter)
             ```markdown
             ## 🤖 AI Assistant: Plan of Action
@@ -75,10 +72,10 @@ jobs:
             *   **Estimated Tool Calls:** ~4-5
             *   **Files to Modify/Create:** 1
             **Proposed Steps:**
-            - [ ] Step 1: Create a new branch named `feature-${{ISSUE_NUMBER}}` from the `main` branch.
+            - [ ] Step 1: Create a new branch named `feature-${ISSUE_NUMBER}` from the `main` branch.
             - [ ] Step 2: Create a new file named `fizzbuzz.py` with the Python script that implements the FizzBuzz logic.
-            - [ ] Step 3: Commit the new file with the message `feat: Add fizzbuzz script for issue #${{ISSUE_NUMBER}}`.
-            - [ ] Step 4: Create a pull request from the `feature-${{ISSUE_NUMBER}}` branch to the `main` branch, linking it to this issue.
+            - [ ] Step 3: Commit the new file with the message `feat: Add fizzbuzz script for issue #${ISSUE_NUMBER}`.
+            - [ ] Step 4: Create a pull request from the `feature-${ISSUE_NUMBER}` branch to the `main` branch, linking it to this issue.
             Please review this plan. To approve, comment `/approve` on this issue.
             ```
           # Gemini CLIのツール設定
