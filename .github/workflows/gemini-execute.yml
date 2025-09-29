@@ -1,0 +1,105 @@
+name: '▶️ Gemini Execute'
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: '${{ github.workflow }}-execute-${{ github.event.issue.number }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: 'bash'
+
+jobs:
+  execute:
+    # コメントの本文が "/approve" と完全に一致し、かつ権限を持つユーザーによって投稿された場合のみ実行
+    if: github.event.comment.body == '/approve' && contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      issues: 'write'
+      pull-requests: 'write'
+
+    steps:
+      - name: 'Mint identity token'
+        id: 'mint_identity_token'
+        if: vars.APP_ID
+        uses: 'actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b'
+        with:
+          app-id: '${{ vars.APP_ID }}'
+          private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+          permission-contents: 'write'
+          permission-issues: 'write'
+          permission-pull-requests: 'write'
+
+      - name: 'Run Gemini CLI to execute the plan'
+        id: 'run_gemini'
+        uses: 'google-github-actions/run-gemini-cli@main'
+        env:
+          GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN }}'
+          ISSUE_NUMBER: '${{ github.event.issue.number }}'
+          REPOSITORY: '${{ github.repository }}'
+        with:
+          # 以下はご自身の環境に合わせて設定してください
+          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          gemini_debug: '${{ fromJSON(vars.DEBUG || vars.ACTIONS_STEP_DEBUG || true) }}'
+          # Geminiへの指示プロンプト
+          prompt: |-
+            ## Persona and Guiding Principles
+            You are a world-class autonomous AI software engineering agent.
+
+            ## Your Current Task: Plan Execution
+            The plan has been approved. Your objective is to execute the development task as described in the original GitHub issue.
+            - You **MUST** complete all steps from creating a branch to creating a pull request.
+            - You **MUST** post a final report comment linking to the pull request.
+
+            ## Step 1: Re-establish Context
+            - The task is for issue `${ISSUE_NUMBER}` in the `${REPOSITORY}` repository.
+            - Use the `mcp__github__get_issue` tool to retrieve the title and description of the issue to understand the full requirements.
+
+            ## Step 2: Execute the Development Plan
+            - Based on the issue's requirements, perform the following actions using the available tools:
+            1.  **Create a Branch**: Use `mcp__github__create_branch`. The branch name should be descriptive (e.g., `feature-${ISSUE_NUMBER}`).
+            2.  **Create or Update Files**: Use `mcp__github__create_or_update_file` to implement the code. Generate the necessary code content based on the request. The commit message must follow the Conventional Commits standard (e.g., `feat: ...`).
+            3.  **Create a Pull Request**: Use `mcp__github__create_pull_request`. The title should be clear, and the body should link the PR to the original issue (e.g., `Closes #${ISSUE_NUMBER}`).
+
+            ## Step 3: Post the Final Report
+            - After the pull request is created, use `mcp__github__add_issue_comment` to post a final report.
+            - Use the template below for your report. You MUST include the link to the pull request you created.
+            - Your final output **MUST** be this tool call.
+
+            ### Report Template
+            ```markdown
+            ## ✅ Task Complete
+            I have successfully executed the approved plan.
+            **Summary of Changes:**
+            *   Created branch `feature-${ISSUE_NUMBER}`.
+            *   Added/modified the required files.
+            *   Opened a new pull request for review.
+            **Pull Request:**
+            *   A pull request has been created here: [Link to the newly created PR]
+            My work on this issue is now complete.
+            ```
+          # Gemini CLIのツール設定
+          settings: |-
+            {
+              "model": { "maxSessionTurns": 10 },
+              "telemetry": { "enabled": false },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+                  "includeTools": [
+                    "add_issue_comment",
+                    "get_issue",
+                    "create_pull_request",
+                    "create_branch",
+                    "create_or_update_file"
+                  ],
+                  "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}" }
+                }
+              }
+            }
