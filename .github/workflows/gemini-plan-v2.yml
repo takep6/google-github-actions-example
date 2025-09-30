@@ -1,0 +1,131 @@
+name: '🔎 Gemini Plan v2'
+
+on:
+  workflow_call:
+    inputs:
+      additional_context:
+        type: 'string'
+        description: 'Any additional context from the request'
+        required: false
+
+concurrency:
+  group: '${{ github.workflow }}-plan-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: 'bash'
+
+jobs:
+  plan:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 7
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      issues: 'write'
+      pull-requests: 'write'
+    steps:
+      - name: 'Mint identity token'
+        id: 'mint_identity_token'
+        if: |-
+          ${{ vars.APP_ID }}
+        uses: 'actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b' # ratchet:actions/create-github-app-token@v2
+        with:
+          app-id: '${{ vars.APP_ID }}'
+          private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+          permission-contents: 'read'
+          permission-issues: 'write'
+          permission-pull-requests: 'write'
+
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8' # ratchet:actions/checkout@v5
+
+      - name: 'Run Gemini generate plan'
+        uses: 'google-github-actions/run-gemini-cli@v0' # ratchet:exclude
+        id: 'gemini_generate_plan'
+        env:
+          GITHUB_TOKEN: '${{ steps.mint_identity_token.outputs.token || secrets.GITHUB_TOKEN || github.token }}'
+          ISSUE_TITLE: '${{ github.event.pull_request.title || github.event.issue.title }}'
+          ISSUE_BODY: '${{ github.event.pull_request.body || github.event.issue.body }}'
+          PULL_REQUEST_NUMBER: '${{ github.event.pull_request.number || github.event.issue.number }}'
+          REPOSITORY: '${{ github.repository }}'
+          ADDITIONAL_CONTEXT: '${{ inputs.additional_context }}'
+        with:
+          gemini_cli_version: '${{ vars.GEMINI_CLI_VERSION }}'
+          gcp_workload_identity_provider: '${{ vars.GCP_WIF_PROVIDER }}'
+          gcp_project_id: '${{ vars.GOOGLE_CLOUD_PROJECT }}'
+          gcp_location: '${{ vars.GOOGLE_CLOUD_LOCATION }}'
+          gcp_service_account: '${{ vars.SERVICE_ACCOUNT_EMAIL }}'
+          gemini_api_key: '${{ secrets.GEMINI_API_KEY }}'
+          use_vertex_ai: '${{ vars.GOOGLE_GENAI_USE_VERTEXAI }}'
+          google_api_key: '${{ secrets.GOOGLE_API_KEY }}'
+          use_gemini_code_assist: '${{ vars.GOOGLE_GENAI_USE_GCA }}'
+          gemini_debug: '${{ fromJSON(vars.DEBUG || vars.ACTIONS_STEP_DEBUG || false) }}'
+          settings: |-
+            {
+              "maxSessionTurns": 25,
+              "telemetry": {
+                "enabled": ${{ vars.GOOGLE_CLOUD_PROJECT != '' }},
+                "target": "gcp"
+              },
+              "mcpServers": {
+                "github": {
+                  "command": "docker",
+                  "args": [
+                    "run",
+                    "-i",
+                    "--rm",
+                    "-e",
+                    "GITHUB_PERSONAL_ACCESS_TOKEN",
+                    "ghcr.io/github/github-mcp-server"
+                  ],
+                  "includeTools": [
+                    "add_comment_to_pending_review",
+                    "create_pending_pull_request_review",
+                    "get_pull_request_diff",
+                    "get_pull_request_files",
+                    "get_pull_request",
+                    "submit_pending_pull_request_review"
+                  ],
+                  "env": {
+                    "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+                  }
+                }
+              },
+              "coreTools": [
+                "run_shell_command(cat)",
+                "run_shell_command(echo)",
+                "run_shell_command(grep)",
+                "run_shell_command(head)",
+                "run_shell_command(tail)"
+              ]
+            }
+          prompt: |-
+            ## Task: Generate and Post a Plan
+            Your goal is to analyze the user's request and create a step-by-step plan.
+            ### User Request
+            - **Title**: `${TITLE}`
+            - **Description**: `${DESCRIPTION}`
+            ### Instructions
+            1.  Analyze the request and formulate a concise, multi-step plan.
+            2.  Format the plan using the provided markdown template.
+            3.  Your final and ONLY output MUST be a single `mcp__github__add_issue_comment` tool call.
+            4.  **Crucially, you must use the following parameters for the tool call:**
+                - `repository`: "${REPOSITORY}"
+                - `issueNumber`: ${ISSUE_NUMBER}
+                - `body`: (Your generated plan markdown)
+            ### Plan Template (for the `body` parameter)
+            ```markdown
+            ## 🤖 AI Assistant: Plan of Action
+            I have analyzed the request and propose the following plan. **This plan will not be executed until a maintainer comments `/approve` on this issue.**
+            **Resource Estimate:**
+            *   **Estimated Tool Calls:** ~4-5
+            *   **Files to Modify/Create:** 1
+            **Proposed Steps:**
+            - [ ] Step 1: Create a new branch named `feature-${ISSUE_NUMBER}` from the `main` branch.
+            - [ ] Step 2: Create a new file named `fizzbuzz.py` with the Python script that implements the FizzBuzz logic.
+            - [ ] Step 3: Commit the new file with the message `feat: Add fizzbuzz script for issue #${ISSUE_NUMBER}`.
+            - [ ] Step 4: Create a pull request from the `feature-${ISSUE_NUMBER}` branch to the `main` branch, linking it to this issue.
+            Please review this plan. To approve, comment `/approve` on this issue.
+            ```
