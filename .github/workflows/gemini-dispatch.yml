@@ -127,19 +127,19 @@ jobs:
             --body "${MESSAGE}" \
             --repo "${REPOSITORY}"
 
-  # plan:
-  #   needs: 'dispatch'
-  #   if: |-
-  #     ${{ needs.dispatch.outputs.command == 'plan' }}
-  #   uses: './.github/workflows/gemini-plan-v2.yml'
-  #   permissions:
-  #     contents: 'read'
-  #     id-token: 'write'
-  #     issues: 'write'
-  #     pull-requests: 'write'
-  #   with:
-  #     additional_context: '${{ needs.dispatch.outputs.additional_context }}'
-  #   secrets: 'inherit'
+  plan:
+    needs: 'dispatch'
+    if: |-
+      ${{ needs.dispatch.outputs.command == 'plan' }}
+    uses: './.github/workflows/gemini-plan-v2.yml'
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      issues: 'write'
+      pull-requests: 'write'
+    with:
+      additional_context: '${{ needs.dispatch.outputs.additional_context }}'
+    secrets: 'inherit'
 
   review:
     needs: 'dispatch'
