@@ -97,6 +97,10 @@ jobs:
               core.setOutput('command', 'review');
               const additionalContext = request.replace(/^@gemini-cli \/review/, '').trim();
               core.setOutput('additional_context', additionalContext);
+            } else if (request.startsWith("@gemini-cli /plan")) {
+              core.setOutput('command', 'plan');
+              const additionalContext = request.replace(/^@gemini-cli \/plan/, '').trim();
+              core.setOutput('additional_context', additionalContext);
             } else if (request.startsWith("@gemini-cli /triage")) {
               core.setOutput('command', 'triage');
             } else if (request.startsWith("@gemini-cli")) {
@@ -123,19 +127,19 @@ jobs:
             --body "${MESSAGE}" \
             --repo "${REPOSITORY}"
 
-  plan:
-    needs: 'dispatch'
-    if: |-
-      ${{ needs.dispatch.outputs.command == 'plan' }}
-    uses: './.github/workflows/gemini-plan-v2.yml'
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-      issues: 'write'
-      pull-requests: 'write'
-    with:
-      additional_context: '${{ needs.dispatch.outputs.additional_context }}'
-    secrets: 'inherit'
+  # plan:
+  #   needs: 'dispatch'
+  #   if: |-
+  #     ${{ needs.dispatch.outputs.command == 'plan' }}
+  #   uses: './.github/workflows/gemini-plan-v2.yml'
+  #   permissions:
+  #     contents: 'read'
+  #     id-token: 'write'
+  #     issues: 'write'
+  #     pull-requests: 'write'
+  #   with:
+  #     additional_context: '${{ needs.dispatch.outputs.additional_context }}'
+  #   secrets: 'inherit'
 
   review:
     needs: 'dispatch'
@@ -182,6 +186,7 @@ jobs:
   fallthrough:
     needs:
       - 'dispatch'
+      - 'plan'
       - 'review'
       - 'triage'
       - 'invoke'
